@@ -27,6 +27,9 @@ class EnumItem(object):
     def __eq__(self, obj):
         return str(self) == str(obj)
 
+    def __lt__(self, obj):
+        return str(self) < str(obj)
+
     def __getitem__(self, name):
         return self.options[name]
 
@@ -46,21 +49,21 @@ class Enum(object):
         self._order = []
 
         # TODO: duplicity!
-        for i in args:
-            if not issubclass(type(i), EnumItem):
-                i = EnumItem(str(i))
-            if i in self._order:
-                raise ValueError("Duplicite item: %s" % i)
-            self._items.append(i)
-            self._order.append(str(i))
+        for item in args:
+            if not issubclass(type(item), EnumItem):
+                item = EnumItem(str(item))
+            if item in self._order:
+                raise ValueError("Duplicite item: %s" % item)
+            self._items.append(item)
+            self._order.append(str(item))
 
-        self._dict = dict([ (value, i) for i, value in enumerate(self._order) ])
+        self._dict = dict([(value, i) for i, value in enumerate(self._order)])
 
     def __iter__(self):
         return iter(self._order)
 
     def __getitem__(self, key):
-        if type(key) in (int, slice):
+        if isinstance(key, (int, slice)):
             return self._order[key]
         return self._dict[key]
 
@@ -84,10 +87,10 @@ class Enum(object):
 
     def get_mapping(self):
         """Return list of (key, value) mappings."""
-        return [ (self._dict[key], key) for key in self._order ]
+        return [(self._dict[key], key) for key in self._order]
 
     def get_item(self, key):
-        if type(key) is int:
+        if isinstance(key, int):
             return self._items[key]
         elif isinstance(key, State):
             return key
@@ -129,7 +132,6 @@ class State(EnumItem):
         self.check_perms = check_perms or []
         self.methods = methods or {}
 
-
     def __getattr__(self, name):
         if name in self.methods:
             return self.methods[name]
@@ -146,10 +148,10 @@ class StateEnum(Enum):
         all_next_states = set()
         for state in self._items:
             for next_state in state.next_states:
-                 all_next_states.add(next_state)
+                all_next_states.add(next_state)
         for state in all_next_states:
             if state not in self._items:
-                 raise ValueError("State '%s' is not defined. Available states: %s" % (state, sorted(self._items)))
+                raise ValueError("State '%s' is not defined. Available states: %s" % (state, sorted(self._items)))
 
     def __str__(self):
         if self._current_state is None:
@@ -195,7 +197,7 @@ class StateEnum(Enum):
 
             for new_state in states:
                 if new_state == current_state:
-#                    valid_states.append(state)
+                    # valid_states.append(state)
                     continue
 
                 # check permissions: all must be valid
@@ -208,7 +210,7 @@ class StateEnum(Enum):
 
         return sorted([(self.get_num(name), name) for name in states])
 
-    def change_state(self, new_state, commit = True, **kwargs):
+    def change_state(self, new_state, commit=True, **kwargs):
         '''new_state is number or state_name
            if commit is set, state is changed,
            otherwise transition is just tested and prepared
@@ -237,7 +239,7 @@ class StateEnum(Enum):
             new_state = self._to
 
         current_state = self._current_state.name
-        #new_state = self.get_value(new_state)
+        # new_state = self.get_value(new_state)
         if str(new_state) not in self._current_state.next_states:
             raise ValueError("Invalid transition '%s' -> '%s'." % (current_state, new_state))
 
@@ -274,7 +276,7 @@ class DictSet(dict):
 
     def __sub__(self, other):
         result = DictSet()
-        for key, value in self.iteritems():
+        for key, value in self.items():
             if key not in other:
                 result[key] = value
         return result
@@ -286,7 +288,7 @@ class DictSet(dict):
 
     def __and__(self, other):
         result = DictSet()
-        for key, value in self.iteritems():
+        for key, value in self.items():
             if key in other:
                 result[key] = value
         return result
