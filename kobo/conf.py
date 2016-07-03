@@ -22,7 +22,6 @@ PyConfigParser accepts following python-like syntax:
 """
 
 
-from __future__ import print_function
 import os
 import fnmatch
 import itertools
@@ -30,9 +29,11 @@ import keyword
 import sys
 import token
 import tokenize
-from cStringIO import StringIO
 
-from kobo.exceptions import ImproperlyConfigured
+import six
+from six import StringIO
+
+from .exceptions import ImproperlyConfigured
 
 
 __all__ = (
@@ -47,16 +48,16 @@ def get_dict_value(dictionary, key):
     if dictionary is None:
         return None
 
-    if type(dictionary) is not dict:
+    if not isinstance(dictionary, dict):
         raise TypeError("Dictionary expected, got %s." % type(dictionary))
 
     try:
         return dictionary[key]
     except KeyError:
-        if isinstance(key, str):
+        if isinstance(key, six.string_types):
             matches = []
-            for pattern in dictionary.iterkeys():
-                if pattern == '*' or not isinstance(pattern, str):
+            for pattern in dictionary:
+                if pattern == '*' or not isinstance(pattern, six.string_types):
                     # exclude '*', because it would match every time
                     continue
                 if fnmatch.fnmatchcase(key, pattern):
@@ -107,6 +108,7 @@ class PyConfigParser(dict):
     def load_from_string(self, input_string):
         """Load data from a string."""
         if input_string:
+            input_string = six.u(input_string)
             self._tokens = tokenize.generate_tokens(StringIO(input_string).readline)
             for key, value in self._parse():
                 self[key] = value
@@ -158,7 +160,7 @@ class PyConfigParser(dict):
 
     def _get_token(self, skip_newline=True):
         """Get a new token from token generator."""
-        self._tok_number, self._tok_value, self._tok_begin, self._tok_end, self._tok_line = self._tokens.next()
+        self._tok_number, self._tok_value, self._tok_begin, self._tok_end, self._tok_line = next(self._tokens)
         self._tok_name = token.tok_name.get(self._tok_number, None)
 
         if self._debug:
@@ -192,7 +194,7 @@ class PyConfigParser(dict):
 
         # look at next token if "%s" follows the string
         self._tokens, tmp = itertools.tee(self._tokens)
-        if tmp.next()[1:2] != ("%", ):
+        if next(tmp)[1:2] != ("%", ):
             # just a regular string
             return result
 
