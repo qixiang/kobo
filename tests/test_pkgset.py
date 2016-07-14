@@ -2,16 +2,22 @@
 # -*- coding: utf-8 -*-
 
 
-import unittest
-import run_tests # set sys.path
-
 import os
+import sys
+import unittest
 import tempfile
 import shutil
 import hashlib
-import cPickle as pickle
+import pickle as pickle
 
-from kobo.pkgset import *
+PROJECT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))  # noqa
+sys.path.insert(0, PROJECT_DIR)  # noqa
+
+import six
+
+from kobo.pkgset import FileWrapper, RpmWrapper, SimpleRpmWrapper, FileCache
+
+from common import read, write
 
 
 class TestFileWrapperClass(unittest.TestCase):
@@ -23,18 +29,19 @@ class TestFileWrapperClass(unittest.TestCase):
         shutil.rmtree(self.tmp_dir)
 
     def test_file_name_property(self):
-        open(self.file_path, "w").write("hello\n")
+        write(self.file_path, "hello\n")
         wrap = FileWrapper(self.file_path)
         self.assertEqual(wrap.file_path, self.file_path)
         self.assertEqual(wrap.file_name, os.path.basename(self.file_path))
 
     def test_compute_checksums(self):
-        open(self.file_path, "w").write("hello\n")
+        write(self.file_path, "hello\n")
 
         res_origin = {}
         for name in ("md5", "sha1", "sha256", "sha512"):
             m = hashlib.new(name)
-            m.update(open(self.file_path, "rb").read())
+            data = read(self.file_path)
+            m.update(six.b(data))
             res_origin[name] = m.hexdigest()
 
         wrap = FileWrapper(self.file_path)
@@ -48,7 +55,7 @@ class TestFileWrapperClass(unittest.TestCase):
         wrap = FileWrapper(file1)
         pickled_data = pickle.dumps(wrap)
         wrap2 = pickle.loads(pickled_data)
-        print wrap2.file_path
+        self.assertEqual(wrap.file_path, wrap2.file_path)
 
 
 class TestRpmWrapperClass(unittest.TestCase):
@@ -115,7 +122,7 @@ class TestFileCacheClass(unittest.TestCase):
         shutil.rmtree(self.tmp_dir)
 
     def test_add_two_same_hardlinks(self):
-        open(self.file1, "w").write("hello\n")
+        write(self.file1, "hello\n")
         os.link(self.file1, self.file2)
 
         self.cache = FileCache()
@@ -128,8 +135,8 @@ class TestFileCacheClass(unittest.TestCase):
         self.assertEqual(id(wrap1), id(wrap2))
 
     def test_add_two_different_files(self):
-        open(self.file1, "w").write("roses are red\n")
-        open(self.file2, "w").write("violets are blue\n")
+        write(self.file1, "roses are red\n")
+        write(self.file2, "violets are blue\n")
 
         self.cache = FileCache()
         wrap1 = self.cache.add(self.file1)
@@ -141,8 +148,8 @@ class TestFileCacheClass(unittest.TestCase):
         self.assertNotEqual(id(wrap1), id(wrap2))
 
     def test_getitem(self):
-        open(self.file1, "w").write("hello\n")
-        open(self.file2, "w").write("hello\n")
+        write(self.file1, "hello\n")
+        write(self.file2, "hello\n")
 
         self.cache = FileCache()
         wrap1 = self.cache.add(self.file1)
@@ -154,7 +161,7 @@ class TestFileCacheClass(unittest.TestCase):
         self.assertEqual(id(self.cache[self.file2]), id(wrap2))
 
     def test_setitem(self):
-        open(self.file1, "w").write("hello\n")
+        write(self.file1, "hello\n")
 
         self.cache1 = FileCache()
         self.cache2 = FileCache()
@@ -166,36 +173,36 @@ class TestFileCacheClass(unittest.TestCase):
         self.assertEqual(id(self.cache2[self.file1]), id(wrap))
 
     def test_iteritems(self):
-        open(self.file1, "w").write("hello\n")
-        open(self.file2, "w").write("hello\n")
+        write(self.file1, "hello\n")
+        write(self.file2, "hello\n")
 
         self.cache = FileCache()
-        wrap1 = self.cache.add(self.file1)
-        wrap2 = self.cache.add(self.file2)
+        self.cache.add(self.file1)
+        self.cache.add(self.file2)
 
-        items = [path for path, _ in self.cache.iteritems()]
+        items = [path for path, _ in list(self.cache.items())]
 
         self.assertEqual(len(self.cache.inode_cache), 2)
         self.assertEqual(len(self.cache.file_cache), 2)
         self.assertEqual(len(items), 2)
-        self.assertTrue(self.file1 in items)
-        self.assertTrue(self.file2 in items)
+        self.assertIn(self.file1, items)
+        self.assertIn(self.file2, items)
 
     def test_iter(self):
-        open(self.file1, "w").write("hello\n")
-        open(self.file2, "w").write("hello\n")
+        write(self.file1, "hello\n")
+        write(self.file2, "hello\n")
 
         self.cache = FileCache()
-        wrap1 = self.cache.add(self.file1)
-        wrap2 = self.cache.add(self.file2)
+        self.cache.add(self.file1)
+        self.cache.add(self.file2)
 
         items = [item for item in self.cache]
 
         self.assertEqual(len(self.cache.inode_cache), 2)
         self.assertEqual(len(self.cache.file_cache), 2)
         self.assertEqual(len(items), 2)
-        self.assertTrue(self.file1 in items)
-        self.assertTrue(self.file2 in items)
+        self.assertIn(self.file1, items)
+        self.assertIn(self.file2, items)
 
     def test_remove_by_file_path(self):
         self.test_add_two_different_files()
@@ -206,8 +213,8 @@ class TestFileCacheClass(unittest.TestCase):
         self.assertEqual(len(self.cache.inode_cache), 1)
         self.assertEqual(len(self.cache.file_cache), 1)
         self.assertEqual(len(items), 1)
-        self.assertTrue(self.file1 not in items)
-        self.assertTrue(self.file2 in items)
+        self.assertNotIn(self.file1, items)
+        self.assertIn(self.file2, items)
 
     def test_remove_by_obj(self):
         self.test_add_two_different_files()
@@ -220,8 +227,8 @@ class TestFileCacheClass(unittest.TestCase):
         self.assertEqual(len(self.cache.inode_cache), 1)
         self.assertEqual(len(self.cache.file_cache), 1)
         self.assertEqual(len(items), 1)
-        self.assertTrue(self.file1 not in items)
-        self.assertTrue(self.file2 in items)
+        self.assertNotIn(self.file1, items)
+        self.assertIn(self.file2, items)
 
     def test_remove_by_filenames(self):
         self.test_add_two_different_files()
@@ -229,7 +236,7 @@ class TestFileCacheClass(unittest.TestCase):
         # add a file with existing name to a subdir
         os.makedirs(os.path.join(self.tmp_dir, "dir"))
         file1a = os.path.join(self.tmp_dir, "dir", "file_1")
-        open(file1a, "w").write("hello\n")
+        write(file1a, "hello\n")
         self.cache.add(file1a)
 
         self.cache.remove_by_filenames("does-not-exist")
@@ -245,8 +252,8 @@ class TestFileCacheClass(unittest.TestCase):
         self.assertEqual(len(self.cache.inode_cache), 1)
         self.assertEqual(len(self.cache.file_cache), 1)
         self.assertEqual(len(items), 1)
-        self.assertTrue(self.file1 not in items)
-        self.assertTrue(self.file2 in items)
+        self.assertNotIn(self.file1, items)
+        self.assertIn(self.file2, items)
 
 
 if __name__ == "__main__":

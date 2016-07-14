@@ -3,8 +3,10 @@
 
 import os
 
-import kobo.rpmlib
-from kobo.shortcuts import compute_file_checksums, force_list
+import six
+
+from . import rpmlib
+from .shortcuts import compute_file_checksums, force_list
 
 
 __all__ = (
@@ -53,7 +55,7 @@ class FileWrapper(object):
         return result
 
     def __setstate__(self, value_dict):
-        for key, value in value_dict.iteritems():
+        for key, value in list(value_dict.items()):
             setattr(self, key, value)
 
     @property
@@ -229,16 +231,16 @@ class FileCache(object):
         self.file_cache[os.path.abspath(name)] = value
 
     def __iter__(self):
-        return self.file_cache.iterkeys()
+        return iter(list(self.file_cache.keys()))
 
     def __len__(self):
         return len(self.file_cache)
 
     def iteritems(self):
-        return self.file_cache.iteritems()
+        return iter(list(self.file_cache.items()))
 
     def items(self):
-        return self.file_cache.items()
+        return list(self.file_cache.items())
 
     def add(self, file_path, file_wrapper_class=None, **kwargs):
         file_path = os.path.abspath(file_path)
@@ -257,11 +259,11 @@ class FileCache(object):
         return value
 
     def remove(self, file_path):
-        if type(file_path) not in (str, unicode):
+        if isinstance(file_path, six.string_types):
+            file_obj = self.file_cache[file_path]
+        else:
             file_obj = file_path
             file_path = file_obj.file_path
-        else:
-            file_obj = self.file_cache[file_path]
 
         cache_key = (file_obj.stat.st_dev, file_obj.stat.st_ino)
         del self.inode_cache[cache_key]
@@ -269,7 +271,7 @@ class FileCache(object):
         return file_obj
 
     def remove_by_filenames(self, file_names):
-        file_names = [ os.path.basename(i) for i in force_list(file_names) ]
-        for i in self.file_cache.keys():
+        file_names = [os.path.basename(i) for i in force_list(file_names)]
+        for i in list(self.file_cache.keys()):
             if os.path.basename(i) in file_names:
                 self.remove(i)
