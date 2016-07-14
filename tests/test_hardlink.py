@@ -2,14 +2,20 @@
 # -*- coding: utf-8 -*-
 
 
+import os
+import sys
 import unittest
-import run_tests # set sys.path
-
 import tempfile
-import os.path
 import shutil
 
+import six
+
+PROJECT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))  # noqa
+sys.path.insert(0, PROJECT_DIR)  # noqa
+
 from kobo.hardlink import *
+
+from common import write
 
 
 class LoggerMock(object):
@@ -31,7 +37,7 @@ class TestHardlinkClass(unittest.TestCase):
 
     def test_link(self):
         path_src = os.path.join(self.tmp_dir, "a")
-        open(path_src, 'w').write("asdf")
+        write(path_src, "asdf")
         path_dst = os.path.join(self.tmp_dir, "b")
 
         hl = Hardlink()
@@ -60,7 +66,7 @@ class TestUndoHardlinkClass(unittest.TestCase):
     def test_undo_hardlink(self):
         path_src = os.path.join(self.tmp_dir, "a")
         path_dst = os.path.join(self.tmp_dir, "b")
-        open(path_src, 'w').write("asdf")
+        write(path_src, "asdf")
         old_stat = os.stat(path_src)
 
         # Only one hardlink exists
