@@ -4,11 +4,12 @@
 # based on: http://code.activestate.com/recipes/146306/
 
 
-import httplib
 import mimetypes
 import os
 
-from kobo.shortcuts import random_string
+from six.moves import http_client
+
+from .shortcuts import random_string
 
 
 class POSTTransport(object):
@@ -94,7 +95,7 @@ class POSTTransport(object):
             ))
         variables_data = "\r\n".join(variables)
         content_length += len(variables_data)
-        content_length += 2 # '\r\n'
+        content_length += 2  # '\r\n'
 
         files = []
         for key, file_name in self._files:
@@ -103,21 +104,21 @@ class POSTTransport(object):
                 'Content-Disposition: form-data; name="%s"; filename="%s"' % (key, os.path.basename(file_name)),
                 "Content-Type: %s" % self.get_content_type(file_name),
                 "",
-                "", # this adds extra newline before file data
+                "",  # this adds extra newline before file data
             ))
             files.append((file_name, file_data))
             content_length += len(file_data)
             content_length += os.path.getsize(file_name)
-            content_length += 2 # '\r\n'
+            content_length += 2  # '\r\n'
 
         footer_data = "\r\n".join(("--%s--" % self._boundary, ""))
         content_length += len(footer_data)
         content_type = "multipart/form-data; boundary=" + self._boundary
 
         if secure:
-            request = httplib.HTTPSConnection(host, port)
+            request = http_client.HTTPSConnection(host, port)
         else:
-            request = httplib.HTTPConnection(host, port)
+            request = http_client.HTTPConnection(host, port)
 
         request.putrequest("POST", selector)
         request.putheader("content-type", content_type)
