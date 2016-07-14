@@ -2,8 +2,12 @@
 # -*- coding: utf-8 -*-
 
 
+import os
+import sys
 import unittest
-import run_tests # set sys.path
+
+PROJECT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))  # noqa
+sys.path.insert(0, PROJECT_DIR)  # noqa
 
 from kobo.plugins import PluginContainer, Plugin
 
@@ -11,28 +15,36 @@ from kobo.plugins import PluginContainer, Plugin
 class PluginA(Plugin):
     enabled = True
 
+
 class PluginB(Plugin):
     enabled = True
+
 
 class PluginC(PluginB):
     enabled = True
 
+
 class DisabledPlugin(Plugin):
     enabled = False
+
 
 class ContainerA(PluginContainer):
     pass
 
+
 class ContainerB(ContainerA):
     pass
+
 
 class ContainerC(ContainerB):
     @classmethod
     def normalize_name(cls, name):
         return name.upper()
 
+
 class ContainerD(PluginContainer):
     pass
+
 
 class ContainerE(ContainerC, ContainerD):
     @classmethod
@@ -46,12 +58,10 @@ class TestPlugins(unittest.TestCase):
         ContainerB._class_plugins = {}
         ContainerC._class_plugins = {}
 
-
     def test_register(self):
         self.assertRaises(TypeError, PluginContainer.register_plugin, PluginA)
         result = ContainerA.register_plugin(PluginA)
         self.assertEqual(result, "PluginA")
-
 
     def test_container_inheritance(self):
         ContainerA.register_plugin(PluginA)
@@ -64,22 +74,21 @@ class TestPlugins(unittest.TestCase):
         self.assertRaises(KeyError, container_a.__getitem__, "PluginC")
 
         container_c = ContainerC()
-        self.assert_("PluginA" not in container_c)
-        self.assert_("PluginB" not in container_c)
-        self.assert_("PluginC" not in container_c)
-        self.assert_("PLUGINA" in container_c)
-        self.assert_("PLUGINB" in container_c)
-        self.assert_("PLUGINC" in container_c)
+        self.assertNotIn("PluginA", container_c)
+        self.assertNotIn("PluginB", container_c)
+        self.assertNotIn("PluginC", container_c)
+        self.assertIn("PLUGINA", container_c)
+        self.assertIn("PLUGINB", container_c)
+        self.assertIn("PLUGINC", container_c)
 
         container_b = ContainerB()
-        self.assert_("PluginA" in container_b)
-        self.assert_("PluginB" in container_b)
-        self.assert_("PluginC" not in container_b)
+        self.assertIn("PluginA", container_b)
+        self.assertIn("PluginB", container_b)
+        self.assertNotIn("PluginC", container_b)
 
         self.assertEqual(container_a["PluginA"].normalized_name, "PluginA")
         self.assertEqual(container_b["PluginA"].normalized_name, "PluginA")
         self.assertEqual(container_c["PluginA"].normalized_name, "PLUGINA")
-
 
     def test_class_attributes(self):
         ContainerA.register_plugin(PluginA)
@@ -91,7 +100,6 @@ class TestPlugins(unittest.TestCase):
         # it ensures that class attributes are specific just for one container
         container_a["PluginA"].foo = "FOO"
         self.assertEqual(getattr(container_b["PluginA"], "foo", None), None)
-
 
     def test_container_reference(self):
         ContainerA.register_plugin(PluginA)
@@ -110,13 +118,11 @@ class TestPlugins(unittest.TestCase):
         self.assertEqual(container_c["PluginB"].container, container_c)
         self.assertEqual(container_c["PluginC"].container, container_c)
 
-
     def test_disabled_plugin(self):
         result = ContainerA.register_plugin(DisabledPlugin)
         self.assertEqual(result, None)
         container_a = ContainerA()
         self.assertRaises(KeyError, container_a.__getitem__, "DisabledPlugin")
-
 
     def test_same_normalized_name(self):
         class PLUGINA(Plugin):
