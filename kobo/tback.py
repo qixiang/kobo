@@ -31,10 +31,15 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
+from __future__ import print_function
+
 import os
 import sys
 import traceback
 import re
+import collections
+
+import six
 
 
 __all__ = (
@@ -57,7 +62,7 @@ def get_exception():
     result = sys.exc_info()[1]
     if result is None:
         return ""
-    return str(result)
+    return six.u(result)
 
 
 class Traceback(object):
@@ -99,19 +104,19 @@ class Traceback(object):
 
         if self.show_environ:
             result.append("<ENVIRON>")
-            for key, value in sorted(os.environ.iteritems()):
+            for key, value in sorted(os.environ.items()):
                 result.append("%s = %s" % (self._to_str(key, "%20s"), self._to_str(value)))
             result.append("</ENVIRON>")
 
         if self.show_environ:
             result.append("<GLOBALS>")
-            for key, value in sorted(os.environ.iteritems()):
+            for key, value in sorted(os.environ.items()):
                 result.append("%s = %s" % (self._to_str(key, "%20s"), self._to_str(value)))
             result.append("</GLOBALS>")
 
         if self.show_modules:
             result.append("<MODULES>")
-            for key, value in sorted(sys.modules.iteritems()):
+            for key, value in sorted(sys.modules.items()):
                 result.append("%s = %s" % (self._to_str(key, "%20"), self._to_str(value)))
             result.append("</MODULES>")
 
@@ -148,7 +153,7 @@ class Traceback(object):
                         if key == "self":
                             try:
                                 variables = sorted(dir(value))
-                            except Exception, ex:
+                            except Exception:
                                 # this exception may be thrown on xmlrpc proxy object
                                 # e.g. <ServerProxy>.__dir__ will be handled as xmlrpc call,
                                 # expected behaviour is that the call returns list of strings for the scope
@@ -161,27 +166,32 @@ class Traceback(object):
                                     continue
                                 if obj_key.startswith("__"):
                                     continue
-                                if callable(obj_value):
+                                if isinstance(obj_value, collections.Callable):
                                     continue
                                 obj_value_str = self._to_str(obj_value, "%.200r")
                                 result.append("%20s = %s" % ("self." + self._to_str(obj_key), obj_value_str))
                     result.append("</LOCALS>")
-        s = u''
+        s = ''
 
         for i in result:
             line = i.replace(r'\\n', '\n').replace(r'\n', '\n')
 
-            if type(i) == unicode:
-                s += i
+            if six.PY2:
+                if isinstance(i, unicode):
+                    s += i
+                else:
+                    s += unicode(str(i), errors='replace')
             else:
-                s += unicode(str(i), errors='replace')
+                s += i
             s += '\n'
 
-        return s.encode('ascii', 'replace')
+        if six.PY2:
+            return s.encode('ascii', 'replace')
+        return s
 
     def print_traceback(self):
         """Print a traceback string to stderr."""
-        print >>sys.stderr, self.get_traceback()
+        print(self.get_traceback(), file=sys.stderr)
 
     def _get_lines_from_file(self, filename, lineno, context_lines):
         # this function was taken from Django and adapted for CLI
@@ -210,17 +220,18 @@ class Traceback(object):
             if match:
                 encoding = match.group(1)
                 break
-        source = [ unicode(sline, encoding, "replace") for sline in source ]
+
+        if six.PY2:
+            source = [sline.encode(encoding, "replace") for sline in source]
 
         lower_bound = max(0, lineno - context_lines)
         upper_bound = lineno + context_lines
 
-        pre_context = [ line.strip("\n") for line in source[lower_bound:lineno] ]
+        pre_context = [line.strip("\n") for line in source[lower_bound:lineno]]
         context_line = source[lineno].strip("\n")
-        post_context = [ line.strip("\n") for line in source[lineno+1:upper_bound] ]
+        post_context = [line.strip("\n") for line in source[lineno+1:upper_bound]]
 
         return lower_bound, pre_context, context_line, post_context
-
 
     def get_frames(self):
         # this function was taken from Django and adapted for CLI
@@ -244,7 +255,7 @@ class Traceback(object):
                     "filename": filename,
                     "function": function,
                     "lineno": lineno + 1,
-                    "vars": tb.tb_frame.f_locals.items(),
+                    "vars": list(tb.tb_frame.f_locals.items()),
                     "id": id(tb),
                     "pre_context": pre_context,
                     "context_line": context_line,
@@ -269,7 +280,7 @@ def set_except_hook(logger=None):
         tback.show_locals = True
         logger and logger.error(tback.get_traceback())
         tback.print_traceback()
-        print
+        print()
 
     _hook.__doc__ = sys.excepthook.__doc__
     _hook.__name__ = sys.excepthook.__name__
