@@ -63,9 +63,9 @@ def log_traceback(func, log_file):
             import kobo.shortcuts
             import kobo.tback
             date = datetime.datetime.strftime(datetime.datetime.now(), "%F %R:%S")
-            data =  "--- TRACEBACK BEGIN: %s ---\n" % date
+            data = "--- TRACEBACK BEGIN: %s ---\n" % date
             data += kobo.tback.Traceback().get_traceback()
-            data +=  "--- TRACEBACK END: %s ---\n\n\n" % date
+            data += "--- TRACEBACK END: %s ---\n\n\n" % date
             kobo.shortcuts.save_to_file(log_file, data, append=True)
             raise
     return new_func
