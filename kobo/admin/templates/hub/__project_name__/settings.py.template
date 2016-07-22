@@ -180,3 +180,8 @@ TASK_DIR = os.path.join(FILES_PATH, 'tasks')
 UPLOAD_DIR = os.path.join(FILES_PATH, 'upload')
 
 ROOT_MENUCONF = '{{ project_name }}.menu'
+
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, "static"),
+    # '/var/www/{{ project_name }}/static/',
+]
