@@ -30,7 +30,7 @@ class Start_Hub(kobo.cli.Command):
 
         # code from django/core/management/commands/startproject.py
         # Create a random SECRET_KEY hash, and put it in the main settings.
-        main_settings_file = os.path.join(directory, name, 'settings.py')
+        main_settings_file = os.path.join(directory, name, name, 'settings.py')
         settings_contents = open(main_settings_file, 'r').read()
         fp = open(main_settings_file, 'w')
         django_alphabet = "abcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*(-_=+)"
