@@ -3,18 +3,16 @@
 
 
 import os
+import unittest
 
-import distutils.command.sdist
-from distutils.core import setup
-from distutils.command.install import INSTALL_SCHEMES
+from setuptools import setup, find_packages
 
 
-# override default tarball format with bzip2
-distutils.command.sdist.sdist.default_format = {"posix": "bztar"}
+def kobo_test_suite():
+    test_loader = unittest.TestLoader()
+    test_suite = test_loader.discover('tests', pattern='test_*.py')
+    return test_suite
 
-# force to install data files to site-packages
-for scheme in INSTALL_SCHEMES.values():
-    scheme["data"] = scheme["purelib"]
 
 # recursively scan for python modules to be included
 package_root_dirs = ["kobo"]
@@ -47,7 +45,7 @@ for package_root_dir in package_root_dirs:
 
 
 packages = sorted(packages)
-for package in package_data.keys():
+for package in list(package_data.keys()):
     package_data[package] = sorted(package_data[package])
 
 
@@ -63,4 +61,6 @@ setup(
     packages        = packages,
     package_data    = package_data,
     scripts         = ["kobo/admin/kobo-admin"],
+
+    test_suite      = "setup.kobo_test_suite",
 )
