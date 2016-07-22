@@ -3,7 +3,9 @@
 
 from django.conf.urls.defaults import *
 
+import kobo.django.upload.views
 
-urlpatterns = patterns("",
-    url(r"^$", "kobo.django.upload.views.file_upload"),
-)
+
+urlpatterns = [
+    url(r"^$", kobo.django.upload.views.file_upload),
+]
