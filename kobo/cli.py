@@ -66,14 +66,15 @@ parser.run()
 """
 
 
+from __future__ import print_function
+
 import sys
 import optparse
 import datetime
 from optparse import Option
-from xmlrpclib import Fault
 
-from kobo.plugins import Plugin, PluginContainer
-from kobo.shortcuts import force_list
+from .plugins import Plugin, PluginContainer
+from .shortcuts import force_list
 
 
 __all__ = (
@@ -94,7 +95,7 @@ def username_prompt(prompt=None, default_value=None):
         return default_value
 
     prompt = prompt or "Enter your username: "
-    print >>sys.stderr, prompt,
+    print(prompt, end=' ', file=sys.stderr)
     return sys.stdin.readline()
 
 
@@ -123,7 +124,7 @@ def yes_no_prompt(prompt, default_value=None):
         default_value = default_value.upper()
 
     prompt = "%s [%s/%s]: " % (prompt, ("y", "Y")[default_value == "Y"], ("n", "N")[default_value == "N"])
-    print >>sys.stderr, prompt,
+    print(prompt, end=' ', file=sys.stderr)
 
     while True:
         user_input = sys.stdin.readline().strip().upper()
@@ -139,7 +140,7 @@ def yes_no_prompt(prompt, default_value=None):
 def are_you_sure_prompt(prompt=None):
     """Give a yes/no (y/n) question."""
     prompt = prompt or "Are you sure? Enter 'YES' to continue: "
-    print >>sys.stderr, prompt,
+    print(prompt, end=' ', file=sys.stderr)
     user_input = sys.stdin.readline().strip()
 
     if user_input == "YES":
@@ -183,19 +184,21 @@ class CommandContainer(PluginContainer):
 
 class CommandOptionParser(optparse.OptionParser):
     """Enhanced OptionParser with plugin support."""
-    def __init__(self,
-            usage=None,
-            option_list=None,
-            option_class=Option,
-            version=None,
-            conflict_handler="error",
-            description=None,
-            formatter=None,
-            add_help_option=True,
-            prog=None,
-            command_container=None,
-            default_command="help",
-            add_username_password_options=False):
+    def __init__(
+        self,
+        usage=None,
+        option_list=None,
+        option_class=Option,
+        version=None,
+        conflict_handler="error",
+        description=None,
+        formatter=None,
+        add_help_option=True,
+        prog=None,
+        command_container=None,
+        default_command="help",
+        add_username_password_options=False
+    ):
 
         usage = usage or "%prog <command> [args] [--help]"
         self.container = command_container
@@ -224,7 +227,7 @@ class CommandOptionParser(optparse.OptionParser):
         commands = []
         admin_commands = []
 
-        for name, plugin in sorted(self.container.plugins.iteritems()):
+        for name, plugin in sorted(self.container.plugins.items()):
             is_admin = getattr(plugin, "admin", False)
             text = "  %-30s %s" % (name, plugin.__doc__ or "")
             if is_admin:
@@ -255,7 +258,7 @@ class CommandOptionParser(optparse.OptionParser):
             command = self.default_command
             # keep args as is
 
-        if not command in self.container.plugins:
+        if command not in self.container.plugins:
             self.error("unknown command: %s" % command)
 
         CommandClass = self.container[command]
@@ -307,31 +310,31 @@ class Help_RST(Command):
 
     def run(self, *args, **kwargs):
         prog = self.parser.get_prog_name()
-        print ".. -*- coding: utf-8 -*-"
-        print
-        print "=" * len(prog)
-        print prog
-        print "=" * len(prog)
-        print
+        print(".. -*- coding: utf-8 -*-")
+        print()
+        print("=" * len(prog))
+        print(prog)
+        print("=" * len(prog))
+        print()
 
         # add subtitle (command description)
         description = getattr(self.parser.container, "_description", None)
         if description:
-            print ":Subtitle: %s" % description
-            print
+            print(":Subtitle: %s" % description)
+            print()
 
         # add copyright
         copyright = getattr(self.parser.container, "_copyright", None)
         if copyright:
-            print ":Copyright: %s" % copyright
+            print(":Copyright: %s" % copyright)
 
         # add date
-        print ":Date: $Date: %s $" % datetime.datetime.strftime(datetime.datetime.utcnow(), format="%F %X")
-        print
+        print(":Date: $Date: %s $" % datetime.datetime.strftime(datetime.datetime.utcnow(), format="%F %X"))
+        print()
 
-        print "--------"
-        print "COMMANDS"
-        print "--------"
+        print("--------")
+        print("COMMANDS")
+        print("--------")
 
         for command_name, CommandClass in sorted(self.parser.container.plugins.items()):
             parser = optparse.OptionParser(usage=self.parser.usage)
@@ -341,18 +344,18 @@ class Help_RST(Command):
             cmd.container = self.parser.container
             cmd_opts, cmd_args = parser.parse_args()
 
-            print command_name
-            print "-" * len(command_name)
+            print(command_name)
+            print("-" * len(command_name))
 
             if cmd.admin:
-                print "[ADMIN ONLY]",
+                print("[ADMIN ONLY]", end=' ')
 
-            print cmd.__doc__.strip()
-            print
+            print(cmd.__doc__.strip())
+            print()
             usage = parser.get_usage().strip().replace("Usage: ", "**Usage:** ", 1)
             if usage:
-                print usage
-                print 
+                print(usage)
+                print()
 
             for opt in sorted(parser.option_list, lambda x, y: cmp(str(x), str(y))):
                 if "-h/--help" in str(opt):
@@ -365,29 +368,29 @@ class Help_RST(Command):
                         opt_list.append("%s=%s" % (opt_str, metavar))
                     else:
                         opt_list.append(opt_str)
-                print "/".join(opt_list)
-                print "  %s" % opt.help
+                print("/".join(opt_list))
+                print("  %s" % opt.help)
                 if opt.action == "append":
-                    print
-                    print "  This option can be specified multiple times"
-                print
-            print
+                    print()
+                    print("  This option can be specified multiple times")
+                print()
+            print()
 
         # handle :Contact: and :Author: ourselves
         authors = force_list(getattr(self.parser.container, "_authors", []))
         contact = getattr(self.parser.container, "_contact", None)
         if authors or contact:
-            print "-------"
-            print "AUTHORS"
-            print "-------"
+            print("-------")
+            print("AUTHORS")
+            print("-------")
 
             for author in sorted(authors):
-                print "- %s" % author
-            print
+                print("- %s" % author)
+            print()
 
             if contact:
-                print "**Contact:** %s" % contact
-                print
+                print("**Contact:** %s" % contact)
+                print()
 
 
 CommandContainer.register_plugin(Help)
