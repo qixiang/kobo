@@ -2,15 +2,26 @@
 # -*- coding: utf-8 -*-
 
 
-import unittest
-import run_tests # set sys.path
-
 import os
+import sys
+import unittest
 import shutil
 import tempfile
-from cStringIO import StringIO
 
-from kobo.shortcuts import *
+from six import StringIO
+
+PROJECT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))  # noqa
+sys.path.insert(0, PROJECT_DIR)  # noqa
+
+from kobo.shortcuts import force_list, force_tuple
+from kobo.shortcuts import allof, anyof, noneof, oneof, is_empty
+from kobo.shortcuts import iter_chunks
+from kobo.shortcuts import save_to_file, read_from_file
+from kobo.shortcuts import run
+from kobo.shortcuts import makedirs, split_path, relative_path
+from kobo.shortcuts import read_checksum_file, compute_file_checksums
+
+from common import read, write
 
 
 class TestShortcuts(unittest.TestCase):
@@ -18,13 +29,13 @@ class TestShortcuts(unittest.TestCase):
         self.assertEqual(force_list("a"), ["a"])
         self.assertEqual(force_list(["a"]), ["a"])
         self.assertEqual(force_list(["a", "b"]), ["a", "b"])
-        self.assertEqual(force_list(set(["a", "b"])), ["a", "b"])
+        self.assertEqual(force_list(set(["a"])), ["a"])
 
     def test_force_tuple(self):
         self.assertEqual(force_tuple("a"), ("a",))
         self.assertEqual(force_tuple(("a",)), ("a",))
         self.assertEqual(force_tuple(("a", "b")), ("a", "b"))
-        self.assertEqual(force_tuple(set(["a", "b"])), ("a", "b"))
+        self.assertEqual(force_tuple(set(["a"])), ("a", ))
 
     def test_allof(self):
         self.assertEqual(allof(), True)
@@ -73,26 +84,30 @@ class TestShortcuts(unittest.TestCase):
 
     def test_iter_chunks(self):
         self.assertEqual(list(iter_chunks([], 100)), [])
+
+        self.assertEqual(list(iter_chunks(list(range(5)), 1)), [[0], [1], [2], [3], [4]])
+        self.assertEqual(list(iter_chunks(list(range(5)), 2)), [[0, 1], [2, 3], [4]])
+        self.assertEqual(list(iter_chunks(list(range(5)), 5)), [[0, 1, 2, 3, 4]])
+        self.assertEqual(list(iter_chunks(list(range(6)), 2)), [[0, 1], [2, 3], [4, 5]])
         self.assertEqual(list(iter_chunks(range(5), 1)), [[0], [1], [2], [3], [4]])
         self.assertEqual(list(iter_chunks(range(5), 2)), [[0, 1], [2, 3], [4]])
         self.assertEqual(list(iter_chunks(range(5), 5)), [[0, 1, 2, 3, 4]])
-        self.assertEqual(list(iter_chunks(range(6), 2)), [[0, 1], [2, 3], [4, 5]])
 
-        self.assertEqual(list(iter_chunks(xrange(5), 2)), [[0, 1], [2, 3], [4]])
-        self.assertEqual(list(iter_chunks(xrange(6), 2)), [[0, 1], [2, 3], [4, 5]])
-        self.assertEqual(list(iter_chunks(xrange(1, 6), 2)), [[1, 2], [3, 4], [5]])
-        self.assertEqual(list(iter_chunks(xrange(1, 7), 2)), [[1, 2], [3, 4], [5, 6]])
+        self.assertEqual(list(iter_chunks(range(6), 2)), [[0, 1], [2, 3], [4, 5]])
+        self.assertEqual(list(iter_chunks(range(1, 6), 2)), [[1, 2], [3, 4], [5]])
+        self.assertEqual(list(iter_chunks(range(1, 7), 2)), [[1, 2], [3, 4], [5, 6]])
 
         def gen(num):
-            for i in xrange(num):
+            for i in range(num):
                 yield i+1
         self.assertEqual(list(iter_chunks(gen(5), 2)), [[1, 2], [3, 4], [5]])
 
         self.assertEqual(list(iter_chunks("01234", 2)), ["01", "23", "4"])
         self.assertEqual(list(iter_chunks("012345", 2)), ["01", "23", "45"])
 
-        file_obj = open("chunks_file", "r")
+        file_obj = open(os.path.join(PROJECT_DIR, "tests", "data", "chunks_file"), "r")
         self.assertEqual(list(iter_chunks(file_obj, 11)), (10 * ["1234567890\n"]) + ["\n"])
+        file_obj.close()
 
         string_io = StringIO((10 * "1234567890\n") + "\n")
         self.assertEqual(list(iter_chunks(string_io, 11)), (10 * ["1234567890\n"]) + ["\n"])
@@ -115,11 +130,11 @@ class TestUtils(unittest.TestCase):
         self.assertEqual("\n".join(read_from_file(self.tmp_file)), "foo\nbar")
 
         # append doesn't modify existing perms
-        self.assertEqual(os.stat(self.tmp_file).st_mode & 0777, 0644)
+        self.assertEqual(os.stat(self.tmp_file).st_mode & 0o777, 0o644)
 
         os.unlink(self.tmp_file)
-        save_to_file(self.tmp_file, "foo", append=True, mode=0600)
-        self.assertEqual(os.stat(self.tmp_file).st_mode & 0777, 0600)
+        save_to_file(self.tmp_file, "foo", append=True, mode=0o600)
+        self.assertEqual(os.stat(self.tmp_file).st_mode & 0o777, 0o600)
 
     def test_run(self):
         ret, out = run("echo hello")
@@ -147,24 +162,24 @@ class TestUtils(unittest.TestCase):
         self.assertRaises(RuntimeError, run, "exit 1")
 
         # stdin test
-        ret, out = run("xargs -0 echo -n", stdin_data="\0".join([str(i) for i in xrange(10000)]))
-        self.assertEqual(out, " ".join([str(i) for i in xrange(10000)]))
+        ret, out = run("xargs -0 echo -n", stdin_data="\0".join([str(i) for i in range(10000)]))
+        self.assertEqual(out, " ".join([str(i) for i in range(10000)]))
 
         # return None
-        ret, out = run("xargs echo", stdin_data="\n".join([str(i) for i in xrange(1000000)]), return_stdout=False)
+        ret, out = run("xargs echo", stdin_data="\n".join([str(i) for i in range(1000000)]), return_stdout=False)
         self.assertEqual(out, None)
 
         # log file with absolute path
         log_file = os.path.join(self.tmp_dir, "a.log")
         ret, out = run("echo XXX", logfile=log_file)
-        self.assertEqual(open(log_file, "r").read(), "XXX\n")
+        self.assertEqual(read(log_file), "XXX\n")
 
         # log file with relative path
         log_file = "b.log"
         cwd = os.getcwd()
         os.chdir(self.tmp_dir)
         ret, out = run("echo XXX", logfile=log_file)
-        self.assertEqual(open(log_file, "r").read(), "XXX\n")
+        self.assertEqual(read(log_file), "XXX\n")
         os.chdir(cwd)
 
         # bashism - output redirection to subshells
@@ -179,7 +194,7 @@ a63d8014dba891345b30174df2b2a57efbb65b4f9f09b98f245d1b3192277ece *test-data/ab
 \911169ddaaf146aff539f58c26c489af3b892dff0fe283c1c264c65ae5aa59a2 *test-data/a\nb
 ef743c494c8ed766272eef7992607a843799149252822266adc302547587253d *test-data/a"b
 \eaba35b63f3a21c43bc4d579fa4ae0cd388ec8633c08e0a54859d07d33a0c487 *test-data/a\\b"""
-        open(self.tmp_file, "w").write(data)
+        write(self.tmp_file, data)
 
         checksums = read_checksum_file(self.tmp_file)
 

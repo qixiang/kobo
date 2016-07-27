@@ -6,6 +6,9 @@ Various useful shortcuts.
 """
 
 
+from __future__ import print_function
+
+import io
 import os
 import sys
 import subprocess
@@ -13,6 +16,8 @@ import random
 import re
 import hashlib
 import threading
+
+import six
 
 
 __all__ = (
@@ -28,7 +33,6 @@ __all__ = (
     "hex_string",
     "touch",
     "read_from_file",
-    "save",
     "save_to_file",
     "find_symlinks_to",
     "run",
@@ -70,7 +74,7 @@ def allof(*args, **kwargs):
 
     @rtype: bool
     """
-    for i in list(args) + kwargs.values():
+    for i in list(args) + list(kwargs.values()):
         if not i:
             return False
     return True
@@ -81,7 +85,7 @@ def anyof(*args, **kwargs):
 
     @rtype: bool
     """
-    for i in list(args) + kwargs.values():
+    for i in list(args) + list(kwargs.values()):
         if i:
             return True
     return False
@@ -92,7 +96,7 @@ def noneof(*args, **kwargs):
 
     @rtype: bool
     """
-    for i in list(args) + kwargs.values():
+    for i in list(args) + list(kwargs.values()):
         if i:
             return False
     return True
@@ -104,7 +108,7 @@ def oneof(*args, **kwargs):
     @rtype: bool
     """
     found = False
-    for i in list(args) + kwargs.values():
+    for i in list(args) + list(kwargs.values()):
         if i:
             if found:
                 return False
@@ -129,8 +133,11 @@ def is_empty(value):
 def iter_chunks(input_list, chunk_size):
     """Iterate through input_list and yield chunk_size-d chunks."""
 
-    # TODO: any idea how to detect files better? This works for StringIO at least...
-    is_file = type(input_list) is file
+    # iterate through file
+    is_file = False
+    if six.PY2:
+        is_file |= isinstance(input_list, file)
+    is_file |= isinstance(input_list, io.IOBase)
     is_file |= hasattr(input_list, "read") and hasattr(input_list, "close") and hasattr(input_list, "seek")
     if is_file:
         while 1:
@@ -140,7 +147,15 @@ def iter_chunks(input_list, chunk_size):
             yield chunk
         return
 
-    # TODO: any idea how to detect generators better?
+    # interate through object that supports slicing
+    can_slice = hasattr(input_list, "__getslice__")
+    can_slice |= isinstance(input_list, six.string_types)
+    if can_slice:
+        for i in range(0, len(input_list), chunk_size):
+            yield input_list[i:i + chunk_size]
+        return
+
+    # iterate through generator
     if hasattr(input_list, "__iter__") and hasattr(input_list, "next"):
         chunk = []
         for i in input_list:
@@ -152,18 +167,16 @@ def iter_chunks(input_list, chunk_size):
             yield chunk
         return
 
-    can_slice = hasattr(input_list, "__getslice__")
-    for i in xrange(0, len(input_list), chunk_size):
-        if can_slice:
-            # regular list
-            yield input_list[i:i + chunk_size]
-        else:
-            # xrange, etc.
-            chunk = []
-            for j in xrange(i, i + chunk_size):
-                if j < len(input_list):
-                    chunk.append(input_list[j])
+    # any other iterable
+    chunk = []
+    for i in input_list:
+        chunk.append(i)
+        if len(chunk) == chunk_size:
             yield chunk
+            chunk = []
+    if chunk:
+        yield chunk
+    return
 
 
 def random_string(length=32, alphabet=None):
@@ -172,7 +185,7 @@ def random_string(length=32, alphabet=None):
     @rtype: str
     """
     alphabet = alphabet or "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-    return "".join([ random.choice(alphabet) for i in xrange(length) ])
+    return "".join([random.choice(alphabet) for i in range(length)])
 
 
 def hex_string(string):
@@ -180,10 +193,10 @@ def hex_string(string):
 
     @rtype: str
     """
-    return "".join(( "%02x" % ord(i) for i in string ))
+    return "".join(("%02x" % ord(i) for i in string))
 
 
-def touch(filename, mode=0644):
+def touch(filename, mode=0o644):
     """Touch a file."""
     save_to_file(filename, "", append=True, mode=mode)
 
@@ -208,19 +221,14 @@ def read_from_file(filename, lines=None, re_filter=None):
     return result
 
 
-def save_to_file(filename, text, append=False, mode=0644):
+def save_to_file(filename, text, append=False, mode=0o644):
     """Save text to a file."""
     if append and os.path.exists(filename):
         fd = os.open(filename, os.O_RDWR | os.O_APPEND, mode)
     else:
         fd = os.open(filename, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, mode)
-    os.write(fd, text)
+    os.write(fd, six.b(six.u(text)))
     os.close(fd)
-
-
-def save(*args, **kwargs):
-    print >> sys.stderr, "DeprecationWarning: kobo.shortcuts.save() is deprecated, use kobo.shortcuts.save_to_file() instead."
-    return save_to_file(*args, **kwargs)
 
 
 def find_symlinks_to(target, directory):
@@ -276,12 +284,12 @@ def run(cmd, show_cmd=False, stdout=False, logfile=None, can_fail=False, workdir
 
     if type(cmd) in (list, tuple):
         import pipes
-        cmd = " ".join(( pipes.quote(i) for i in cmd ))
+        cmd = " ".join((pipes.quote(i) for i in cmd))
 
     if show_cmd:
         command = "COMMAND: %s\n%s\n" % (cmd, "-" * (len(cmd) + 9))
         if stdout:
-            print command,
+            print(command, end=' ')
         if logfile:
             save_to_file(logfile, command)
 
@@ -294,35 +302,42 @@ def run(cmd, show_cmd=False, stdout=False, logfile=None, can_fail=False, workdir
     if stdin_data is not None:
         class StdinThread(threading.Thread):
             def run(self):
-                proc.stdin.write(stdin_data)
+                if six.PY3:
+                    data = stdin_data.encode("utf-8")
+                else:
+                    data = stdin_data
+                proc.stdin.write(data)
                 proc.stdin.close()
         stdin_thread = StdinThread()
         stdin_thread.daemon = True
         stdin_thread.start()
 
-    output = ""
+    output = six.u("")
     while True:
         if buffer_size == -1:
             lines = proc.stdout.readline()
         else:
             try:
                 lines = proc.stdout.read(buffer_size)
-            except (IOError, OSError), ex:
+            except (IOError, OSError) as ex:
                 import errno
                 if ex.errno == errno.EINTR:
                     continue
                 else:
                     raise
 
-        if lines == "":
+        if not lines:
             break
+        if six.PY3:
+            lines = lines.decode("utf-8")
         if stdout:
-            print lines,
+            print(lines, end=" ")
         if logfile:
             save_to_file(logfile, lines, append=True)
         if return_stdout:
-            output += lines
+            output += six.u(lines)
     proc.wait()
+    proc.stdout.close()
 
     if stdin_data is not None:
         stdin_thread.join()
@@ -332,7 +347,7 @@ def run(cmd, show_cmd=False, stdout=False, logfile=None, can_fail=False, workdir
         err_msg += "\nFor more details see %s" % logfile
 
     if proc.returncode != 0 and show_cmd:
-        print >> sys.stderr, err_msg
+        print(err_msg, file=sys.stderr)
 
     if proc.returncode != 0 and not can_fail:
         raise RuntimeError(err_msg)
@@ -371,16 +386,18 @@ def compute_file_checksums(filename, checksum_types):
         if not chunk:
             break
         for checksum_type in checksum_types:
-            checksums[checksum_type].update(chunk)
+            checksums[checksum_type].update(six.b(chunk))
     fo.close()
 
     result = {}
-    for checksum_type, checksum in checksums.iteritems():
+    for checksum_type, checksum in checksums.items():
         result[checksum_type] = checksum.hexdigest().lower()
     return result
 
 
 CHECKSUM_LINE_RE = re.compile(r"^(?P<escaped>\\)?(?P<checksum>\S+) [ \*](?P<path>.*)$")
+
+
 def parse_checksum_line(line):
     """Parse a line of md5sum, sha256sum, ... file.
 
@@ -389,16 +406,22 @@ def parse_checksum_line(line):
     @return: (checksum, path)
     @rtype: (str, str)
     """
-
     if not line.strip():
         return None
-    if line.strip().startswith("#"):
+
+    if line.strip().startswith(six.b("#")):
         return None
+
+    if six.PY3:
+        line = line.decode('utf-8')
 
     match = CHECKSUM_LINE_RE.match(line)
     data = match.groupdict()
     if data["escaped"]:
-        data["path"] = data["path"].decode('string-escape')
+        if six.PY3:
+            data["path"] = data["path"].encode("utf-8").decode('unicode-escape')
+        else:
+            data["path"] = data["path"].decode('string-escape')
     return (data["checksum"], data["path"])
 
 
@@ -479,14 +502,14 @@ def relative_path(src_path, dst_path=None):
     return os.path.join(*src_path)
 
 
-def makedirs(path, mode=0777):
+def makedirs(path, mode=0o777):
     """
     Wrapper to os.makedirs which does not
     throw an exception on existing directory.
     """
     try:
         os.makedirs(path, mode)
-    except OSError, ex:
+    except OSError as ex:
         if ex.errno != 17:
             raise
         if not os.path.isdir(path):
