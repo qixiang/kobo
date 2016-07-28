@@ -29,9 +29,16 @@ Example:
 
 import sys
 import threading
-import Queue
+import queue
 
-import kobo.log
+from .log import LoggingBase
+
+
+__all__ = [
+    "ThreadPool",
+    "WorkerThread",
+    "run_in_threads",
+]
 
 
 class WorkerThread(threading.Thread):
@@ -45,15 +52,15 @@ class WorkerThread(threading.Thread):
         self.failed = False
 
     def stop(self, kill=False):
-        self.running = False # finish the work and join the thread
-        self.kill = kill     # stop immediately without finishing the work
+        self.running = False  # finish the work and join the thread
+        self.kill = kill      # stop immediately without finishing the work
         self.join()
 
     def run(self):
         while (not self.kill) and (self.running or not self.pool.queue.empty()):
             try:
                 item = self.pool.queue.get(timeout=self.get_timeout)
-            except Queue.Empty:
+            except queue.Empty:
                 continue
 
             self.pool.queue_get_lock.acquire()
@@ -72,12 +79,12 @@ class WorkerThread(threading.Thread):
         raise NotImplementedError
 
 
-class ThreadPool(kobo.log.LoggingBase):
+class ThreadPool(LoggingBase):
     def __init__(self, logger=None):
-        kobo.log.LoggingBase.__init__(self, logger)
+        LoggingBase.__init__(self, logger)
         self.threads = []
         self.exceptions = []
-        self.queue = Queue.Queue()
+        self.queue = queue.Queue()
         self.queue_put_lock = threading.Lock()
         self.queue_get_lock = threading.Lock()
         self.queue_total = 0
@@ -106,12 +113,13 @@ class ThreadPool(kobo.log.LoggingBase):
             i.join()
         if self.exceptions:
             exc_info = self.exceptions[0]
-            raise exc_info[0], exc_info[1], exc_info[2]
+            raise exc_info[0](exc_info[1]).with_traceback(exc_info[2])
 
     def kill(self):
         for i in self.threads:
             i.kill = True
             i.running = False
+
 
 def run_in_threads(func, params, threads=5, full_queue=True, use_lock=False):
     '''Run func with params (thread_task, param, queue_num) in threads
@@ -125,12 +133,14 @@ def run_in_threads(func, params, threads=5, full_queue=True, use_lock=False):
     assert(threads > 0)
     if use_lock:
         lock = threading.Lock()
+
     class MyWorker(WorkerThread):
         def process(self, *args):
             if use_lock:
                 args = list(args)
                 args.append(lock)
             func(self, *args)
+
     pool = ThreadPool()
     if not full_queue:
         pool.start()
