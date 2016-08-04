@@ -51,8 +51,8 @@ import sys
 import signal
 import time
 import datetime
-from xmlrpclib import Fault, ProtocolError
-from cStringIO import StringIO
+from xmlrpc.client import Fault, ProtocolError
+from io import StringIO
 
 import kobo.conf
 import kobo.worker.logger
@@ -64,7 +64,7 @@ from kobo.exceptions import ShutdownException
 from kobo.process import kill_process_group, get_process_status
 from kobo.plugins import PluginContainer
 
-from task import FailTaskException
+from .task import FailTaskException
 from kobo.client.constants import TASK_STATES
 
 
@@ -128,7 +128,7 @@ class TaskManager(kobo.log.LoggingBase):
         self.log_debug("Updating worker info.")
         try:
             self.worker_info = self.hub.worker.update_worker(self.worker_info["enabled"], self.worker_info["ready"], len(self.pid_dict))
-        except ProtocolError, ex:
+        except ProtocolError as ex:
             self.log_error("Cannot update worker info: %s" % ex)
             return
 
@@ -145,7 +145,7 @@ class TaskManager(kobo.log.LoggingBase):
         if task_info.get("alert", False):
             try:
                 os.kill(self.pid_dict[task_info["id"]], signal.SIGUSR2)
-            except OSError, ex:
+            except OSError as ex:
                 self.log_error("Cannot wake up task %s: %s" % (self._task_str(task_info), ex))
             else:
                 self.log_info("Waking up task %s." % self._task_str(task_info))
@@ -175,7 +175,7 @@ class TaskManager(kobo.log.LoggingBase):
 
             if task_info["timeout"] is not None:
                 time_delta = datetime.datetime.now() - datetime.datetime(*time.strptime(task_info["dt_started"], "%Y-%m-%d %H:%M:%S")[0:6])
-                #time_delta = datetime.datetime.now() - datetime.datetime.strptime(task_info["dt_started"], "%Y-%m-%d %H:%M:%S") #for Python2.5+
+                # time_delta = datetime.datetime.now() - datetime.datetime.strptime(task_info["dt_started"], "%Y-%m-%d %H:%M:%S") #for Python2.5+
                 if time_delta.seconds >= (int(task_info["timeout"])):
                     timeout_list.append(task_info["id"])
                     finished_tasks.add(task_info["id"])
@@ -185,7 +185,7 @@ class TaskManager(kobo.log.LoggingBase):
             self.wakeup_task(task_info)
 
         self.task_dict = task_list
-        self.log_debug("Current tasks: %r" % self.task_dict.keys())
+        self.log_debug("Current tasks: %r" % list(self.task_dict.keys()))
 
         if interrupted_list:
             self.log_warning("Closing interrupted tasks: %r" % sorted(interrupted_list))
@@ -193,7 +193,7 @@ class TaskManager(kobo.log.LoggingBase):
                 self.hub.worker.interrupt_tasks(interrupted_list)
             except (ShutdownException, KeyboardInterrupt):
                 raise
-            except Exception, ex:
+            except Exception as ex:
                 self.log_error("%s" % ex)
 
         if timeout_list:
@@ -202,11 +202,11 @@ class TaskManager(kobo.log.LoggingBase):
                 self.hub.worker.timeout_tasks(timeout_list)
             except (ShutdownException, KeyboardInterrupt):
                 raise
-            except Exception, ex:
+            except Exception as ex:
                 self.log_error("%s" % ex)
 
-        self.log_debug("pids: %s" % self.pid_dict.values())
-        for task_id in self.pid_dict.keys():
+        self.log_debug("pids: %s" % list(self.pid_dict.values()))
+        for task_id in list(self.pid_dict.keys()):
             if self.is_finished_task(task_id):
                 self.log_info("Task has finished: %s" % task_id)
                 finished_tasks.add(task_id)
@@ -216,7 +216,7 @@ class TaskManager(kobo.log.LoggingBase):
                 if task_id in self.task_dict:
                     del self.task_dict[task_id]
 
-        for task_id, pid in self.pid_dict.items():
+        for task_id, pid in list(self.pid_dict.items()):
             if task_id not in self.task_dict:
                 # expected to happen when:
                 #  - we are in the narrow gap between the time the task records its result
@@ -272,7 +272,7 @@ class TaskManager(kobo.log.LoggingBase):
                 raise ShutdownException()
 
             awaited_task_list = self.hub.worker.get_awaited_tasks(task_list)
-            self.log_debug("Current awaited tasks: %r" % [ task_info["id"] for task_info in awaited_task_list ])
+            self.log_debug("Current awaited tasks: %r" % [task_info["id"] for task_info in awaited_task_list])
 
             # process assigned tasks first
             for task_info in awaited_task_list:
@@ -281,7 +281,7 @@ class TaskManager(kobo.log.LoggingBase):
             return
 
         assigned_task_list = self.hub.worker.get_tasks_to_assign()
-        self.log_debug("Current assigned tasks: %r" % [ task_info["id"] for task_info in assigned_task_list ])
+        self.log_debug("Current assigned tasks: %r" % [task_info["id"] for task_info in assigned_task_list])
 
         # process assigned tasks first
         for task_info in assigned_task_list:
@@ -297,7 +297,7 @@ class TaskManager(kobo.log.LoggingBase):
             TaskClass = self.task_container[task_info["method"]]
         except (KeyError, ValueError):
             self.log_error("Cannot take unknown task %s (#%s)" % (task_info["method"], task_info["id"]))
-            time.sleep(1) # prevent log flooding
+            time.sleep(1)  # prevent log flooding
             return
 
         if not TaskClass.exclusive:
@@ -322,11 +322,11 @@ class TaskManager(kobo.log.LoggingBase):
                 result = True
             except (ShutdownException, KeyboardInterrupt):
                 raise
-            except Fault, ex:
+            except Fault as ex:
                 reason = "[%s] %s" % (ex.faultCode, ex.faultString)
-            except Exception, ex:
+            except Exception as ex:
                 # TODO: log proper error message
-#                self.logger.error("[%s] %s" % (ex.faultCode, ex.faultString))
+                # self.logger.error("[%s] %s" % (ex.faultCode, ex.faultString))
                 reason = "%s" % ex
 
         if not result:
@@ -407,17 +407,17 @@ class TaskManager(kobo.log.LoggingBase):
             # interrupt otherwise
             hub.worker.interrupt_tasks([task.task_id])
             return
-        except SystemExit, ex:
+        except SystemExit as ex:
             if len(ex.args) > 0 and ex.args[0] != 0:
                 sys.stdout.write("\nProgram has exited with return code '%s'." % ex.args[0])
                 failed = True
-        except FailTaskException, ex:
+        except FailTaskException as ex:
             failed = True
         except:
             message = "ERROR: %s\n" % kobo.tback.get_exception()
             message += "See traceback.log for details (admin only).\n"
             hub.upload_task_log(StringIO(message), task.task_id, "error.log")
-            hub.upload_task_log(StringIO(kobo.tback.Traceback().get_traceback()), task.task_id, "traceback.log", mode=0600)
+            hub.upload_task_log(StringIO(kobo.tback.Traceback().get_traceback()), task.task_id, "traceback.log", mode=0o600)
             failed = True
 
         thread.stop()
@@ -445,7 +445,7 @@ class TaskManager(kobo.log.LoggingBase):
 
         try:
             (childpid, status) = os.waitpid(pid, os.WNOHANG)
-        except OSError, ex:
+        except OSError as ex:
             if ex.errno != errno.ECHILD:
                 # should not happen
                 self.log_error("Process hasn't exited with errno.ECHILD: %s" % task_id)
@@ -467,34 +467,32 @@ class TaskManager(kobo.log.LoggingBase):
         """
 
         # clean up stray subtasks
-#        self.logger.debug("cleanup_task: Trying to terminate task with SIGTERM: %s [#%s] (pid: %s)" % (self.task_dict[task_id]["method"], task_id, self.pid_dict[task_id]))
+        # self.logger.debug("cleanup_task: Trying to terminate task with SIGTERM: %s [#%s] (pid: %s)" % (self.task_dict[task_id]["method"], task_id, self.pid_dict[task_id]))
 
         try:
-#            success = kill_process_group(self.pid_dict[task_id])
             success = kill_process_group(self.pid_dict[task_id], logger=self._logger)
-        except IOError, ex:
-            # proc file doesn"t exist -> process was already killed
+        except IOError:
+            # proc file doesn't exist -> process was already killed
             success = True
 
         if not success:
-#            self.logger.debug("cleanup_task: Trying to terminate task with SIGKILL: %s [#%s] (pid: %s)" % (self.task_dict[task_id]["method"], task_id, self.pid_dict[task_id]))
+            # self.logger.debug("cleanup_task: Trying to terminate task with SIGKILL: %s [#%s] (pid: %s)" % (self.task_dict[task_id]["method"], task_id, self.pid_dict[task_id]))
             try:
-#                success = kill_process_group(self.pid_dict[task_id], signal.SIGKILL, timeout=2)
                 success = kill_process_group(self.pid_dict[task_id], signal.SIGKILL, timeout=2, logger=self._logger)
             except IOError:
                 # proc file doesn"t exist -> process was already killed
                 success = True
 
-#        if success:
-#            self.logger.info("cleanup_task: Task terminated: %s [#%s] (pid: %s)" % (self.task_dict[task_id]["method"], task_id, self.pid_dict[task_id]))
-#        else:
-#            self.logger.error("cleanup_task: Task NOT terminated: %s [#%s] (pid: %s)" % (self.task_dict[task_id]["method"], task_id, self.pid_dict[task_id]))
+        # if success:
+        #     self.logger.info("cleanup_task: Task terminated: %s [#%s] (pid: %s)" % (self.task_dict[task_id]["method"], task_id, self.pid_dict[task_id]))
+        # else:
+        #     self.logger.error("cleanup_task: Task NOT terminated: %s [#%s] (pid: %s)" % (self.task_dict[task_id]["method"], task_id, self.pid_dict[task_id]))
 
         return success
 
     def shutdown(self):
         """Terminate all tasks and exit."""
-        for task_id, task_info in self.task_dict.iteritems():
+        for task_id, task_info in self.task_dict.items():
             try:
                 TaskClass = self.task_container[task_info["method"]]
             except (AttributeError, ValueError):
@@ -506,7 +504,7 @@ class TaskManager(kobo.log.LoggingBase):
 
         if self.task_dict:
             # interrupt only if there are some tasks to interrupt
-            self.hub.worker.interrupt_tasks(self.task_dict.keys())
+            self.hub.worker.interrupt_tasks(list(self.task_dict.keys()))
         self.update_worker_info()
 
     def lock(self):

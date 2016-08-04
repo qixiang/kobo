@@ -1,12 +1,10 @@
 # -*- coding: utf-8 -*-
 
 
-import os
+from .task import TaskBase, FailTaskException  # noqa
+from .taskmanager import TaskContainer, TaskManager, ShutdownException  # noqa
 
-from task import *
-from taskmanager import *
-
-import tasks
+from . import tasks  # noqa
 
 
 TaskContainer.register_module(tasks)

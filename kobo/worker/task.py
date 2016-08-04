@@ -134,7 +134,7 @@ class TaskBase(Plugin):
             self._subtask_list.remove(i)
 
         if fail:
-            print "Failing because of at least one subtask hasn't closed properly."
+            print("Failing because of at least one subtask hasn't closed properly.")
             self.fail()
 
         return finished

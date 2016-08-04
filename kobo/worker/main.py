@@ -8,7 +8,7 @@ import optparse
 import logging
 
 # IMPORTANT: import taskd first to set os.environ["PROJECT_DEFAULT_CONFIG_FILE"]
-from kobo.worker.taskmanager import TaskManager, TaskContainer
+from kobo.worker.taskmanager import TaskManager
 
 import kobo.conf
 import kobo.log
@@ -38,7 +38,7 @@ def main_loop(conf, foreground=False):
             kobo.log.add_rotating_file_logger(logger, log_file, log_level=log_level)
 
         tm = TaskManager(conf=conf, logger=logger)
-    except Exception, ex:
+    except Exception as ex:
         raise
         sys.stderr.write("Error initializing TaskManager: %s\n" % ex)
         sys.exit(1)
