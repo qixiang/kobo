@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 
+
+from __future__ import print_function
+
 import sys
-try:
-    import json
-except ImportError:
-    import simplejson as json
+import json
 
 from kobo.client import ClientCommand
 from kobo.client.constants import TASK_STATES
@@ -13,7 +13,6 @@ from kobo.client.constants import TASK_STATES
 class List_Tasks(ClientCommand):
     """list RUNNING and/or FREE tasks"""
     enabled = True
-
 
     def options(self):
         self.parser.usage = "%%prog %s [--free] [--running] [--verbose|--json]" % self.normalized_name
@@ -67,13 +66,13 @@ class List_Tasks(ClientCommand):
         self.set_hub(username, password)
         result = sorted(self.hub.client.get_tasks([], filters), key=lambda x: x["id"])
         if use_json:
-            print json.dumps(result, indent=2, sort_keys=True)
+            print(json.dumps(result, indent=2, sort_keys=True))
         elif verbose:
             fmt = "%(id)8s %(state_label)-12s %(method)-20s %(owner)-12s %(worker)s"
             header = dict(id="TASKID", state_label="STATE", method="METHOD", owner="OWNER", worker="WORKER")
-            print >> sys.stderr, fmt % header
+            print(fmt % header, file=sys.stderr)
             for task in result:
-                print fmt % task
+                print(fmt % task)
         else:
             for task in result:
-                print task['id']
+                print(task['id'])

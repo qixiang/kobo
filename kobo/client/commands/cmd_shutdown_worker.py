@@ -2,7 +2,7 @@
 
 
 import sys
-from xmlrpclib import Fault
+from xmlrpc.client import Fault
 
 from kobo.client import ClientCommand
 
@@ -11,7 +11,6 @@ class Shutdown_Worker(ClientCommand):
     """shutdown a worker"""
     enabled = True
     admin = True
-
 
     def options(self):
         self.parser.usage = "%%prog %s [--kill] worker_name [worker_name]" % self.normalized_name
@@ -22,7 +21,6 @@ class Shutdown_Worker(ClientCommand):
             action="store_true",
             help="kill worker immediately"
         )
-
 
     def run(self, *args, **kwargs):
         kill = kwargs.pop("kill", False)
@@ -38,5 +36,5 @@ class Shutdown_Worker(ClientCommand):
         for worker in workers:
             try:
                 self.hub.client.shutdown_worker(worker, kill)
-            except Fault, ex:
+            except Fault as ex:
                 sys.stderr.write("%s\n" % ex.faultString)

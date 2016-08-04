@@ -12,8 +12,8 @@ __all__ = (
 
 
 # register default command plugins
-#import kobo.client.commands
-#CommandContainer.register_module(kobo.client.commands, prefix="cmd_")
+# import kobo.client.commands
+# CommandContainer.register_module(kobo.client.commands, prefix="cmd_")
 
 
 def main():

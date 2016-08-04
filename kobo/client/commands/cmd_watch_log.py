@@ -1,22 +1,21 @@
 # -*- coding: utf-8 -*-
 
+
 import sys
 import time
-import urllib2
-try:
-    import json
-except ImportError:
-    import simplejson as json
+import json
+
+import six
 
 from kobo.client import ClientCommand
 
 
 MIN_POLL_INTERVAL = 15
 
+
 class Watch_Log(ClientCommand):
     """displays task logs incrementally"""
     enabled = True
-
 
     def options(self):
         self.parser.usage = "%%prog %s task_id" % self.normalized_name
@@ -42,7 +41,6 @@ class Watch_Log(ClientCommand):
             help="Return after fetching current logfile, don't wait until task finishes"
         )
 
-
     def run(self, *args, **kwargs):
         if len(args) != 1:
             self.parser.error("Exactly one task id must be specified.")
@@ -60,11 +58,11 @@ class Watch_Log(ClientCommand):
         url = self.conf['HUB_URL'].replace('/xmlrpc', '') + '/task/%d/log-json/%s?offset=%d'
         offset = 0
         while True:
-            data = json.loads(urllib2.urlopen(url % (task_id, kwargs['type'], offset)).read())
+            data = json.loads(six.urllib.request.urlopen(url % (task_id, kwargs['type'], offset)).read())
             if data['content']:
                 sys.stdout.write(data['content'])
                 sys.stdout.flush()
             if data['task_finished'] == 1 or kwargs['nowait']:
-                 break
+                break
             offset = data['new_offset']
             time.sleep(kwargs['poll'])

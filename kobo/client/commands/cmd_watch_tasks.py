@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 
-from kobo.client.task_watcher import *
+from kobo.client.task_watcher import TaskWatcher
 from kobo.client import ClientCommand
 
 
@@ -9,10 +9,8 @@ class Watch_Tasks(ClientCommand):
     """track progress of particular tasks"""
     enabled = True
 
-
     def options(self):
         self.parser.usage = "%%prog %s task_id [task_id...]" % self.normalized_name
-
 
     def run(self, *args, **kwargs):
         if len(args) == 0:

@@ -2,7 +2,7 @@
 
 
 import sys
-from xmlrpclib import Fault
+from xmlrpc.client import Fault
 
 from kobo.client import ClientCommand
 
@@ -11,7 +11,6 @@ class Disable_Worker(ClientCommand):
     """disable worker"""
     enabled = True
     admin = True
-
 
     def options(self):
         self.parser.usage = "%%prog %s [--all] [worker_name]" % self.normalized_name
@@ -36,7 +35,7 @@ class Disable_Worker(ClientCommand):
         if kwargs['all']:
             try:
                 workers = self.hub.client.list_workers(True)
-            except Fault, ex:
+            except Fault as ex:
                 sys.stderr.write("%s\n" % ex.faultString)
                 sys.exit(1)
         else:
@@ -44,5 +43,5 @@ class Disable_Worker(ClientCommand):
         for worker in workers:
             try:
                 self.hub.client.disable_worker(worker)
-            except Fault, ex:
+            except Fault as ex:
                 sys.stderr.write("%s\n" % ex.faultString)

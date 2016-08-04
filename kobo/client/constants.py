@@ -12,15 +12,15 @@ __all__ = (
 
 
 TASK_STATES = Enum(
-    "FREE",        # default state for new tasks
-    "ASSIGNED",    # assigned to a worker
-    "OPEN",        # opened by a worker and being processed
-    "CLOSED",      # successfully finished
-    "CANCELED",    # canceled by user request
-    "FAILED",      # failed
-    "INTERRUPTED", # interrupted by an external event (power outage, process killed, etc.)
-    "TIMEOUT",     # reached timeout and killed by task manager
-    "CREATED",     # task is created, but still not ready to be processed
+    "FREE",         # default state for new tasks
+    "ASSIGNED",     # assigned to a worker
+    "OPEN",         # opened by a worker and being processed
+    "CLOSED",       # successfully finished
+    "CANCELED",     # canceled by user request
+    "FAILED",       # failed
+    "INTERRUPTED",  # interrupted by an external event (power outage, process killed, etc.)
+    "TIMEOUT",      # reached timeout and killed by task manager
+    "CREATED",      # task is created, but still not ready to be processed
 )
 
 

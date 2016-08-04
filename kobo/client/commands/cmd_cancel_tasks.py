@@ -10,10 +10,8 @@ class Cancel_Tasks(ClientCommand):
     """cancel free, assigned or open tasks"""
     enabled = True
 
-
     def options(self):
         self.parser.usage = "%%prog %s task_id [task_id...]" % self.normalized_name
-
 
     def run(self, *args, **kwargs):
         if len(args) == 0:
@@ -29,11 +27,11 @@ class Cancel_Tasks(ClientCommand):
         for task_id in tasks:
             try:
                 result = self.hub.client.cancel_task(task_id)
-                if result and isinstance(result, basestring):
-                    print result
-            except Exception, ex:
+                if result and isinstance(result, str):
+                    print(result)
+            except Exception as ex:
                 failed = True
-                print ex
+                print(ex)
 
         if failed:
             sys.exit(1)

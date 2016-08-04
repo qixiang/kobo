@@ -3,7 +3,7 @@
 
 import sys
 
-from kobo.client.task_watcher import *
+from kobo.client.task_watcher import TaskWatcher
 from kobo.client import ClientCommand
 
 
@@ -11,11 +11,9 @@ class Resubmit_Tasks(ClientCommand):
     """resubmit failed tasks"""
     enabled = True
 
-
     def options(self):
         self.parser.usage = "%%prog %s task_id [task_id...]" % self.normalized_name
         self.parser.add_option("--force", action="store_true", help="Resubmit also tasks which are closed properly.")
-
 
     def run(self, *args, **kwargs):
         if len(args) == 0:
@@ -33,9 +31,9 @@ class Resubmit_Tasks(ClientCommand):
             try:
                 resubmitted_id = self.hub.client.resubmit_task(task_id, kwargs.pop("force", False))
                 resubmitted_tasks.append(resubmitted_id)
-            except Exception, ex:
+            except Exception as ex:
                 failed = True
-                print ex
+                print(ex)
 
         TaskWatcher.watch_tasks(self.hub, resubmitted_tasks)
         if failed:

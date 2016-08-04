@@ -1,10 +1,7 @@
 # -*- coding: utf-8 -*-
 
 
-try:
-    import json
-except ImportError:
-    import simplejson as json
+import json
 
 from kobo.client import ClientCommand
 
@@ -45,7 +42,7 @@ class Create_Task(ClientCommand):
         password = kwargs.pop("password", None)
 
         task_args = kwargs.get("args", None)
-        if task_args != None:
+        if task_args is not None:
             self._check_task_args(task_args)
 
         if kwargs["task_id"] is None:
@@ -54,7 +51,7 @@ class Create_Task(ClientCommand):
             if kwargs["method"] is None:
                 self.parser.error("Method is not set.")
 
-        for key, value in kwargs.items():
+        for key, value in list(kwargs.items()):
             if value is None:
                 del kwargs[key]
 

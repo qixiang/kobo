@@ -8,7 +8,6 @@ class List_Workers(ClientCommand):
     """list workers"""
     enabled = True
 
-
     def options(self):
         self.parser.usage = "%%prog %s" % self.normalized_name
 
@@ -19,11 +18,10 @@ class List_Workers(ClientCommand):
             help="show disabled workers"
         )
 
-
     def run(self, *args, **kwargs):
         username = kwargs.pop("username", None)
         password = kwargs.pop("password", None)
         show_disabled = kwargs.get("show_disabled", False)
 
         self.set_hub(username, password)
-        print self.hub.client.list_workers(not show_disabled)
+        print(self.hub.client.list_workers(not show_disabled))
