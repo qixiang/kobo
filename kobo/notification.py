@@ -39,12 +39,12 @@ class EmailNotification(object):
             if reply_to:
                 headers.append("Reply-To: %s" % reply_to)
 
-            for key, value in xheaders.iteritems():
+            for key, value in xheaders.items():
                 if not key.startswith("X-"):
                     raise KeyError("X-Header has to start with 'X-': %s" % key)
                 headers.append("%s: %s" % (key, value))
 
-            headers.append("") # blank line after headers
+            headers.append("")  # blank line after headers
             headers.append(body)
 
             message = "\r\n".join(headers)
