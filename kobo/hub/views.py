@@ -23,6 +23,7 @@ from kobo.hub.models import Arch, Channel, Task
 from kobo.hub.forms import TaskSearchForm
 from kobo.django.views.generic import ExtraDetailView, SearchView
 
+
 class UserDetailView(ExtraDetailView):
     model = get_user_model()
     title = _("User detail")
@@ -33,6 +34,7 @@ class UserDetailView(ExtraDetailView):
         context = super(UserDetailView, self).get_context_data(**kwargs)
         context['tasks'] = kwargs['object'].task_set.count()
         return context
+
 
 class DetailViewWithWorkers(ExtraDetailView):
     model = Channel
@@ -45,6 +47,7 @@ class DetailViewWithWorkers(ExtraDetailView):
         context["worker_list"] = kwargs["object"].worker_set.order_by("name")
         return context
 
+
 class ArchDetailView(ExtraDetailView):
     model = Arch
     template_name = "arch/detail.html"
@@ -55,6 +58,7 @@ class ArchDetailView(ExtraDetailView):
         context = super(ArchDetailView, self).get_context_data(**kwargs)
         context["worker_list"] = kwargs["object"].worker_set.order_by("name")
         return context
+
 
 class TaskListView(SearchView):
     # TODO: missing kwargs custom queries for backward compatibility
@@ -190,7 +194,7 @@ def login(request, redirect_field_name=REDIRECT_FIELD_NAME):
 
 
 def krb5login(request, redirect_field_name=REDIRECT_FIELD_NAME):
-    #middleware = 'django.contrib.auth.middleware.RemoteUserMiddleware'
+    # middleware = 'django.contrib.auth.middleware.RemoteUserMiddleware'
     middleware = 'kobo.django.auth.middleware.LimitedRemoteUserMiddleware'
     if middleware not in settings.MIDDLEWARE_CLASSES:
         raise ImproperlyConfigured("krb5login view requires '%s' middleware installed" % middleware)
@@ -198,7 +202,7 @@ def krb5login(request, redirect_field_name=REDIRECT_FIELD_NAME):
     if not redirect_to:
         redirect_to = reverse("home/index")
     return RedirectView.as_view(url=redirect_to)(request)
-    
+
 
 def logout(request, redirect_field_name=REDIRECT_FIELD_NAME):
     return django.contrib.auth.views.logout(request, redirect_field_name=redirect_field_name)

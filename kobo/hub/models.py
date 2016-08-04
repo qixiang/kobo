@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
 
 import os
-import sys
 import datetime
 import gzip
 import shutil
 import logging
 
-logger =  logging.getLogger("kobo")
+logger = logging.getLogger("kobo")
 
 try:
     import json
@@ -22,7 +21,7 @@ from django.utils.translation import ugettext_lazy as _
 from django.db.models.signals import post_delete
 
 import kobo.django.fields
-from kobo.client.constants import *
+from kobo.client.constants import TASK_STATES, FINISHED_STATES, FAILED_STATES
 from kobo.shortcuts import random_string, read_from_file, save_to_file, run
 
 
@@ -41,15 +40,12 @@ class Arch(models.Model):
     name        = models.CharField(max_length=16, unique=True, help_text=_("i386, ia64, ..."))
     pretty_name = models.CharField(max_length=64, unique=True, help_text=_("i386, Itanium, ..."))
 
-
     class Meta:
         ordering = ("name", )
         verbose_name_plural = "arches"
 
-
     def __unicode__(self):
-        return u"%s" % self.name
-
+        return "%s" % self.name
 
     def export(self):
         """Export data for xml-rpc."""
@@ -58,7 +54,6 @@ class Arch(models.Model):
             "name": self.name,
             "pretty_name": self.pretty_name,
         }
-
 
     @property
     def worker_count(self):
@@ -71,10 +66,8 @@ class Channel(models.Model):
     """Model for hub_channel table."""
     name        = models.CharField(max_length=128, help_text=_("Channel name"))
 
-
     def __unicode__(self):
-        return u"%s" % self.name
-
+        return "%s" % self.name
 
     def export(self):
         """Export data for xml-rpc."""
@@ -82,7 +75,6 @@ class Channel(models.Model):
             "id": self.id,
             "name": self.name,
         }
-
 
     @property
     def worker_count(self):
@@ -97,7 +89,6 @@ class WorkerManager(models.Manager):
     def enabled(self):
         """Return all enabled workers."""
         return self.filter(enabled=True)
-
 
     def ready(self):
         """Return all enabled workers which are ready."""
@@ -123,17 +114,15 @@ class Worker(models.Model):
     # override default *objects* Manager
     objects = WorkerManager()
 
-
     def __unicode__(self):
-        return u"%s" % self.name
-
+        return "%s" % self.name
 
     def save(self, *args, **kwargs):
         # precompute task count, current load and ready
         tasks = Task.objects.opened().filter(worker=self)
         self.task_count = tasks.count()
-        self.current_load = sum(( task.weight for task in tasks if not task.waiting ))
-        self.ready = self.enabled and (self.current_load < self.max_load and self.task_count < 3*self.max_load)
+        self.current_load = sum((task.weight for task in tasks if not task.waiting))
+        self.ready = self.enabled and (self.current_load < self.max_load and self.task_count < 3 * self.max_load)
 
         while not self.worker_key:
             # if worker_key is empty, generate a new one
@@ -142,14 +131,13 @@ class Worker(models.Model):
                 self.worker_key = key
         super(self.__class__, self).save(*args, **kwargs)
 
-
     def export(self):
         """Export data for xml-rpc."""
         return {
             "id": self.id,
             "name": self.name,
-            "arches": [ i.export() for i in self.arches.all() ],
-            "channels": [ i.export() for i in self.channels.all() ],
+            "arches": [i.export() for i in self.arches.all()],
+            "channels": [i.export() for i in self.channels.all()],
             "enabled": self.enabled,
             "max_load": self.max_load,
             "ready": self.ready,
@@ -161,21 +149,17 @@ class Worker(models.Model):
             "version": self._get_version(),
         }
 
-
     def _get_version(self):
         """Return hub version or None (if settings.VERSION is not set)."""
         return getattr(settings, "VERSION", None)
-
 
     def running_tasks(self):
         """Return list of running tasks on this worker."""
         return Task.objects.running().filter(worker=self)
 
-
     def assigned_tasks(self):
         """Return list of assigned tasks to this worker."""
         return Task.objects.assigned().filter(worker=self)
-
 
     def update_worker(self, enabled, ready, task_count):
         """Update worker attributes. Return worker_info.
@@ -243,7 +227,7 @@ class TaskLogs(object):
 
     def __init__(self, task_obj):
         self.cache = {}
-        self.changed = {} # changed logs, will be written on save()
+        self.changed = {}  # changed logs, will be written on save()
         self.task = task_obj
 
     def _get_absolute_log_path(self, name):
@@ -291,9 +275,9 @@ class TaskLogs(object):
                 continue
             log_path = self._get_absolute_log_path(log)
             if os.path.basename(log).startswith("traceback"):
-                mode = 0600
+                mode = 0o600
             else:
-                mode = 0644
+                mode = 0o644
             save_to_file(log_path, self.cache[log], mode=mode)
             self.changed[log] = False
 
@@ -395,8 +379,8 @@ class Task(models.Model):
 
     def __unicode__(self):
         if self.parent:
-            return u"#%s [method: %s, state: %s, worker: %s, parent: #%s]" % (self.id, self.method, self.get_state_display(), self.worker, self.parent.id)
-        return u"#%s [method: %s, state: %s, worker: %s]" % (self.id, self.method, self.get_state_display(), self.worker)
+            return "#%s [method: %s, state: %s, worker: %s, parent: #%s]" % (self.id, self.method, self.get_state_display(), self.worker, self.parent.id)
+        return "#%s [method: %s, state: %s, worker: %s]" % (self.id, self.method, self.get_state_display(), self.worker)
 
     def save(self, *args, **kwargs):
         # save to db to precalculate subtask counts and obtain an ID (on insert) for stdout and traceback
@@ -423,7 +407,7 @@ class Task(models.Model):
             raise Exception('Possible hack, trying to read path "%s"' % path)
 
         if create and not os.path.isdir(path):
-            os.makedirs(path, mode=0755)
+            os.makedirs(path, mode=0o755)
 
         return path
 
@@ -461,7 +445,7 @@ class Task(models.Model):
         task.exclusive = exclusive
 
         # TODO: unsupported in Django 1.0
-        #task.validate()
+        # task.validate()
         task.save()
         return task.id
 
@@ -480,16 +464,6 @@ class Task(models.Model):
             "exclusive": True,
         }
         return cls.create_task(**kwargs)
-
-    def set_args(self, **kwargs):
-        """Serialize args dictionary."""
-        print >> sys.stderr, "DeprecationWarning: kobo.hub.models.Task.set_args() is deprecated. Use kobo.hub.models.Task.args instead."
-        self.args = kwargs
-
-    def get_args(self):
-        """Deserialize args dictionary."""
-        print >> sys.stderr, "DeprecationWarning: kobo.hub.models.Task.get_args() is deprecated. Use kobo.hub.models.Task.args instead."
-        return self.args.copy()
 
     def get_args_display(self):
         """Deserialize args dictionary to human readable form"""
@@ -541,7 +515,7 @@ class Task(models.Model):
                 "parent": self.parent and self.parent.export() or None,
                 "arch": self.arch.export(),
                 "channel": self.channel.export(),
-                "subtask_id_list": [ i.id for i in self.subtasks() ],
+                "subtask_id_list": [i.id for i in self.subtasks()],
             })
 
         return result
@@ -564,7 +538,7 @@ class Task(models.Model):
         if self.time is None:
             return ""
 
-        time = "%02d:%02d:%02d" % ((self.time.seconds/60.0/60.0), (self.time.seconds/60.0 % 60), self.time.seconds % 60)
+        time = "%02d:%02d:%02d" % ((self.time.seconds / 60.0 / 60.0), (self.time.seconds / 60.0 % 60), self.time.seconds % 60)
         if self.time.days:
             time = _("%s days, %s") % (self.time.days, time)
         return time
@@ -575,7 +549,7 @@ class Task(models.Model):
 
         if type(initial_states) in (list, tuple):
             # filter out invalid state codes
-            initial_states = [ i for i, j in TASK_STATES.get_mapping() if i in initial_states ]
+            initial_states = [i for i, j in TASK_STATES.get_mapping() if i in initial_states]
             if not initial_states:
                 # initial_states is empty
                 initial_states = (TASK_STATES["FREE"], )
@@ -597,7 +571,7 @@ WHERE
   id=%%s
   and state in (%(initial_states)s)
   and (worker_id is null or worker_id=%%s)
-""" % { "initial_states": ",".join(( "'%s'" % i for i in initial_states )), }
+""" % {"initial_states": ",".join(("'%s'" % i for i in initial_states))}
 
         dt_started = self.dt_started
         if new_state == TASK_STATES["OPEN"]:
@@ -761,7 +735,7 @@ WHERE
             raise Exception("Cannot resubmit exclusive task: %s" % self.id)
 
         if not force and self.state not in FAILED_STATES:
-            states = [ TASK_STATES.get_value(i) for i in FAILED_STATES ]
+            states = [TASK_STATES.get_value(i) for i in FAILED_STATES]
             raise Exception("Task '%s' must be in: %s" % (self.id, states))
 
         kwargs = {
@@ -853,10 +827,11 @@ def _task_delete(sender, instance, **kwargs):
     When Task object is deleted, appropriate task_dir is deleted also. This is
     done by catching post_delete signal
     """
-    task_dir = Task.get_task_dir(instance.id)    
+    task_dir = Task.get_task_dir(instance.id)
     try:
         shutil.rmtree(task_dir)
     except OSError:
         pass
+
 
 post_delete.connect(_task_delete, sender=Task)

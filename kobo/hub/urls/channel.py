@@ -16,9 +16,9 @@ urlpatterns = [
         title=_("Channels"),
     ), name="channel/list"),
     url(r"^(?P<pk>\d+)/$", DetailViewWithWorkers.as_view(
-        model = Channel,
-        template_name = "channel/detail.html",
-        context_object_name = "channel",
-        title = _("Architecture detail"),
+        model=Channel,
+        template_name="channel/detail.html",
+        context_object_name="channel",
+        title=_("Architecture detail"),
     ), name="channel/detail"),
 ]

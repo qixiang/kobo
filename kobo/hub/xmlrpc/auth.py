@@ -1,19 +1,12 @@
 # -*- coding: utf-8 -*-
 
 
-import datetime
-import base64
-import socket
-
 import django.contrib.auth
-from django.conf import settings
-from django.contrib.auth.backends import ModelBackend
 from django.core.exceptions import PermissionDenied
-from django.contrib.sessions.models import Session
 
 from kobo.hub.models import Worker
 from kobo.django.auth.krb5 import Krb5RemoteUserBackend
-from kobo.django.xmlrpc.auth import *
+from kobo.django.xmlrpc.auth import login_krbv, login_password, logout, renew_session
 
 
 __all__ = (

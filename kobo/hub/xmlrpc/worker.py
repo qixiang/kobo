@@ -174,7 +174,7 @@ def update_worker(request, enabled, ready, task_count):
 @validate_worker
 def get_tasks_to_assign(request):
     task_list = []
-    max_tasks = max(request.worker.max_tasks, 10) # return info about at least 10 tasks
+    max_tasks = max(request.worker.max_tasks, 10)  # return info about at least 10 tasks
 
     # Limit each query by max_tasks.
     # Worker sometimes doesn't succeed in taking all tasks from task_list,
@@ -226,7 +226,7 @@ def get_tasks_to_assign(request):
 @validate_worker
 def get_awaited_tasks(request, awaited_task_list):
     task_list = []
-    for task in Task.objects.filter(awaited=True, parent__in=[ i["id"] for i in awaited_task_list ]):#.order_by("-exclusive", "-awaited", "id")[:50]:
+    for task in Task.objects.filter(awaited=True, parent__in=[i["id"] for i in awaited_task_list]):  # .order_by("-exclusive", "-awaited", "id")[:50]:
         task_info = task.export()
         task_list.append(task_info)
     return task_list
@@ -237,7 +237,7 @@ def create_subtask(request, label, method, args, parent_id):
     parent_task = Task.objects.get_and_verify(task_id=parent_id, worker=request.worker)
 #    def create_task(cls, owner_name, label, method, args=None, parent_id=None, worker_name=None, arch_name="noarch", channel_name="default", priority=10, weight=1, exclusive=False):
 #    subtask_id = self.__hub.worker.createSubtask(label, method, args, self.__task_id)
-    return Task.create_task(parent_task.owner.username, label, method, args=args, parent_id=parent_id, arch_name=parent_task.arch.name, channel_name=parent_task.channel.name)# priority=priority, weight=weight)
+    return Task.create_task(parent_task.owner.username, label, method, args=args, parent_id=parent_id, arch_name=parent_task.arch.name, channel_name=parent_task.channel.name)  # priority=priority, weight=weight)
 
 
 @validate_worker

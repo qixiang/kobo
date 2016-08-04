@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 
-from models import Worker
+from .models import Worker
 
 
 def get_worker(request):

@@ -32,6 +32,6 @@ class TaskSearchForm(forms.Form):
 
         if self.state is not None:
             query &= Q(state__in=self.state)
-        #if self.kwargs:
-        #    query &= Q(self.kwargs)
+        # if self.kwargs:
+        #     query &= Q(self.kwargs)
         return Task.objects.filter(parent__isnull=True).filter(query).order_by(*self.order_by).defer("result", "args").select_related("owner", "worker")

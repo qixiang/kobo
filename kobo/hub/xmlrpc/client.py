@@ -38,21 +38,23 @@ def shutdown_worker(request, worker_name, kill=False):
 def enable_worker(request, worker_name):
     """enable_worker(worker_name): none
     """
-    models.Worker.objects.filter(name = worker_name).update(enabled=True)
+    models.Worker.objects.filter(name=worker_name).update(enabled=True)
 
 
 @admin_required
 def disable_worker(request, worker_name):
     """disable_worker(worker_name, kill): None
     """
-    models.Worker.objects.filter(name = worker_name).update(enabled=False)
+    models.Worker.objects.filter(name=worker_name).update(enabled=False)
+
 
 @admin_required
 def get_worker_info(request, worker_name):
     try:
-        return models.Worker.objects.get(name = worker_name).export()
+        return models.Worker.objects.get(name=worker_name).export()
     except models.Worker.DoesNotExist:
         return {}
+
 
 def task_info(request, task_id, flat=False):
     """task_info(task_id, flat=False): dict or None"""
@@ -79,7 +81,7 @@ def get_tasks(request, task_id_list, state_list=None):
         tasks = models.Task.objects.all()
     if state_list:
         tasks = tasks.filter(state__in=state_list)
-    return [ i.export(flat=True) for i in tasks ]
+    return [i.export(flat=True) for i in tasks]
 
 
 @login_required
@@ -100,7 +102,7 @@ def resubmit_task(request, task_id, force=False):
 
 def list_workers(request, enabled=True):
     """(): [string]"""
-    return sorted([ worker.name for worker in models.Worker.objects.filter(enabled=enabled) ])
+    return sorted([worker.name for worker in models.Worker.objects.filter(enabled=enabled)])
 
 
 @admin_required

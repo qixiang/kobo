@@ -12,7 +12,7 @@ urlpatterns = [
         queryset=Worker.objects.order_by("name"),
         template_name="worker/list.html",
         context_object_name="worker_list",
-        title = _("Workers"),
+        title=_("Workers"),
     ), name="worker/list"),
     url(r"^(?P<pk>\d+)/$", ExtraDetailView.as_view(
         queryset=Worker.objects.select_related(),
